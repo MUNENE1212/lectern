@@ -102,3 +102,10 @@ Phase 4: spaced-repetition flashcards driven by recorded gaps; reminders.
 
 Note: the repository lives on an NTFS volume, so the executable bit is not preserved.
 Entry points are console scripts; nothing relies on `chmod +x`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Built with [piper](https://github.com/rhasspy/piper) for speech, [PyMuPDF](https://pymupdf.readthedocs.io/)
+for extraction, and [calibre](https://calibre-ebook.com/) for ebook formats.
