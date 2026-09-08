@@ -15,8 +15,10 @@ from pathlib import Path
 
 CONFIG_PATH = Path(os.environ.get("LECTERN_CONFIG", Path.home() / ".config/lectern/config.toml"))
 
-_EXTERNAL = Path("/media/munen/muneneENT/lectern-library")
-_FALLBACK = Path.home() / ".local/share/lectern/library"
+# Default to the XDG data directory. Audio is large, so a machine with a roomier
+# volume should point `library.root` at it in config.toml (or set LECTERN_LIBRARY).
+_XDG = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+_DEFAULT_ROOT = _XDG / "lectern/library"
 
 DEFAULT_VOICE_DIR = Path.home() / ".local/share/piper-voices"
 DEFAULT_VOICE = "en_US-lessac-medium"
@@ -55,8 +57,7 @@ class Config:
 
 
 def _default_library_root() -> Path:
-    # Prefer the external drive when its mount point is present.
-    return _EXTERNAL if _EXTERNAL.parent.is_dir() else _FALLBACK
+    return _DEFAULT_ROOT
 
 
 def _default_workers() -> int:

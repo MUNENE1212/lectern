@@ -68,7 +68,7 @@ said rather than what you named it.
 
 ```toml
 [library]
-root  = "/media/munen/muneneENT/lectern-library"
+root  = "~/.local/share/lectern/library"   # point at a roomier volume if you have one
 inbox = "~/Lectern Inbox"
 
 [tts]
