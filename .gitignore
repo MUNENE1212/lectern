@@ -1,0 +1,18 @@
+# Library data (audio, extracted text, database) never belongs in git
+lectern-library/
+*.mp3
+*.m4b
+*.wav
+*.onnx
+*.onnx.json
+pages.json
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.env

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lectern</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#1c1a17; --muted:#6b645c;
+    --line:#e6e1da; --accent:#8a5a2b; --bar:#e9e3da;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#171513; --panel:#211e1b; --ink:#f0ece6; --muted:#a49a8e;
+            --line:#332e29; --accent:#d59a5c; --bar:#2c2823; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:20px 24px 12px; display:flex; gap:16px; align-items:baseline;
+           flex-wrap:wrap; border-bottom:1px solid var(--line); }
+  h1 { font-size:19px; margin:0; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; }
+  #search { margin-left:auto; padding:7px 11px; border:1px solid var(--line);
+            border-radius:7px; background:var(--panel); color:var(--ink); min-width:210px; }
+  main { max-width:900px; margin:0 auto; padding:20px 24px 140px; }
+  .book { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:12px; cursor:pointer; }
+  .book:hover { border-color:var(--accent); }
+  .row { display:flex; align-items:baseline; gap:10px; }
+  .title { font-weight:600; }
+  .meta { color:var(--muted); font-size:12.5px; margin-left:auto; white-space:nowrap; }
+  .track { height:6px; background:var(--bar); border-radius:3px; margin-top:9px; overflow:hidden; }
+  .fill { height:100%; background:var(--accent); border-radius:3px; }
+  .chapters { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+  .ch { display:flex; gap:10px; padding:5px 4px; border-radius:6px; font-size:14px; }
+  .ch:hover { background:var(--bar); }
+  .ch .n { color:var(--muted); width:26px; text-align:right; font-variant-numeric:tabular-nums; }
+  .ch .d { margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .ch.playing { color:var(--accent); font-weight:600; }
+  .ch.noaudio { opacity:.45; }
+  #player { position:fixed; left:0; right:0; bottom:0; background:var(--panel);
+            border-top:1px solid var(--line); padding:10px 24px 14px; }
+  #player .now { font-size:13px; color:var(--muted); margin-bottom:6px; }
+  audio { width:100%; }
+  .empty { color:var(--muted); padding:40px 0; text-align:center; }
+  .hit { background:var(--panel); border:1px solid var(--line); border-radius:8px;
+         padding:10px 13px; margin-bottom:8px; font-size:14px; }
+  .hit .where { color:var(--muted); font-size:12.5px; margin-bottom:3px; }
+  mark { background:transparent; color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lectern</h1>
+  <span class="sub" id="tally"></span>
+  <input id="search" type="search" placeholder="Search your library…">
+</header>
+<main>
+  <div id="list"></div>
+</main>
+<div id="player" hidden>
+  <div class="now" id="now"></div>
+  <audio id="audio" controls preload="metadata"></audio>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const listEl = $('#list'), audio = $('#audio'), playerEl = $('#player');
+let books = [], current = null, openSlug = null, saveTimer = null;
+
+const hms = s => {
+  s = Math.max(0, Math.round(s || 0));
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return h ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s%60).padStart(2,'0')}s`;
+};
+
+async function loadBooks() {
+  books = await (await fetch('/api/books')).json();
+  render();
+}
+
+function render() {
+  if (!books.length) {
+    listEl.innerHTML = '<div class="empty">Nothing here yet — add a book with <code>lectern add</code></div>';
+    return;
+  }
+  $('#tally').textContent = `${books.length} book${books.length>1?'s':''}`;
+  listEl.innerHTML = books.map(b => `
+    <div class="book" data-slug="${b.slug}">
+      <div class="row">
+        <span class="title">${esc(b.title)}</span>
+        <span class="meta">${b.chapters} ch · ${hms(b.total)} · ${Math.round(b.progress*100)}%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:${(b.progress*100).toFixed(1)}%"></div></div>
+      <div class="chapters" id="ch-${b.slug}" hidden></div>
+    </div>`).join('');
+  listEl.querySelectorAll('.book').forEach(el =>
+    el.addEventListener('click', ev => {
+      if (ev.target.closest('.ch')) return;
+      toggle(el.dataset.slug);
+    }));
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function toggle(slug) {
+  const box = document.getElementById('ch-' + slug);
+  if (!box.hidden) { box.hidden = true; return; }
+  const data = await (await fetch('/api/books/' + slug)).json();
+  openSlug = slug;
+  box.innerHTML = data.chapters.map(c => `
+    <div class="ch ${c.has_audio ? '' : 'noaudio'}" data-idx="${c.idx}" data-id="${c.id}">
+      <span class="n">${c.idx}</span>
+      <span>${esc(c.title)}</span>
+      <span class="d">${c.duration ? hms(c.duration) : '—'}</span>
+    </div>`).join('');
+  box.hidden = false;
+  box.querySelectorAll('.ch').forEach(el => el.addEventListener('click', () => {
+    if (el.classList.contains('noaudio')) return;
+    play(slug, +el.dataset.idx, +el.dataset.id, data.title,
+         el.querySelector('span:nth-child(2)').textContent, 0);
+  }));
+  if (data.position && data.position.chapter_id) {
+    const ch = data.chapters.find(c => c.id === data.position.chapter_id);
+    if (ch) current = {slug, idx: ch.idx, id: ch.id, book: data.title,
+                       title: ch.title, resume: data.position.offset};
+  }
+}
+
+function play(slug, idx, id, book, title, offset) {
+  current = {slug, idx, id, book, title};
+  audio.src = `/api/audio/${slug}/${idx}`;
+  audio.addEventListener('loadedmetadata', function once() {
+    if (offset > 0) audio.currentTime = offset;
+    audio.removeEventListener('loadedmetadata', once);
+  });
+  audio.play().catch(()=>{});
+  playerEl.hidden = false;
+  $('#now').textContent = `${book} — ${idx}. ${title}`;
+  document.querySelectorAll('.ch').forEach(e =>
+    e.classList.toggle('playing', +e.dataset.idx === idx && openSlug === slug));
+}
+
+function savePosition() {
+  if (!current) return;
+  fetch('/api/position/' + current.slug, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({chapter_id: current.id, offset: audio.currentTime})
+  }).catch(()=>{});
+}
+
+audio.addEventListener('pause', savePosition);
+audio.addEventListener('seeked', savePosition);
+audio.addEventListener('ended', savePosition);
+audio.addEventListener('timeupdate', () => {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; savePosition(); }, 10000);
+});
+window.addEventListener('beforeunload', savePosition);
+
+let searchTimer = null;
+$('#search').addEventListener('input', ev => {
+  clearTimeout(searchTimer);
+  const q = ev.target.value.trim();
+  searchTimer = setTimeout(async () => {
+    if (!q) { render(); return; }
+    const hits = await (await fetch('/api/search?q=' + encodeURIComponent(q))).json();
+    listEl.innerHTML = hits.length ? hits.map(h => `
+      <div class="hit">
+        <div class="where">${esc(h.book_title)} — ch${h.idx} ${esc(h.chapter_title)}${h.page_start ? ' · p' + h.page_start : ''}</div>
+        <div>${esc(h.snippet).replace(/\[/g,'<mark>').replace(/\]/g,'</mark>')}</div>
+      </div>`).join('') : '<div class="empty">No matches</div>';
+  }, 220);
+});
+
+loadBooks();
+</script>
+</body>
+</html>
