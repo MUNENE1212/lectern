@@ -96,7 +96,9 @@ def infer_mapping(text: str, words: set[str] | None = None) -> tuple[dict, dict,
         scores: list[tuple[float, str]] = []
         for cand in CANDIDATES:
             hits = sum(
-                1 for w in pool if w.replace(glyph, cand).lower().strip("'’s") in words
+                1
+                for w in pool
+                if w.replace(glyph, cand).lower().strip("'’s") in words
                 or w.replace(glyph, cand).lower() in words
             )
             scores.append((hits / len(pool), cand))

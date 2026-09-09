@@ -4,18 +4,33 @@ from lectern.repair import glyphs
 
 FI, FF, FL, FFI, FFL = "", "", "", "", ""
 
-WORDS = {"find", "first", "financial", "benefits", "effective", "different",
-         "difficult", "office", "flexible", "offline", "reflection", "efficient"}
+WORDS = {
+    "find",
+    "first",
+    "financial",
+    "benefits",
+    "effective",
+    "different",
+    "difficult",
+    "office",
+    "flexible",
+    "offline",
+    "reflection",
+    "efficient",
+}
 
 
 def _corpus() -> str:
-    return " ".join([
-        f"{FI}nd the {FI}rst {FI}nancial bene{FI}ts",
-        f"e{FF}ective and di{FF}erent",
-        f"{FL}exible re{FL}ection",
-        f"di{FFI}cult o{FFI}ce e{FFI}cient",
-        f"o{FFL}ine",
-    ] * 6)
+    return " ".join(
+        [
+            f"{FI}nd the {FI}rst {FI}nancial bene{FI}ts",
+            f"e{FF}ective and di{FF}erent",
+            f"{FL}exible re{FL}ection",
+            f"di{FFI}cult o{FFI}ce e{FFI}cient",
+            f"o{FFL}ine",
+        ]
+        * 6
+    )
 
 
 def test_infers_mapping_without_a_hardcoded_table():

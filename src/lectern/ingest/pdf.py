@@ -19,9 +19,7 @@ def _poppler_word_count(path: Path) -> int | None:
     if not shutil.which("pdftotext"):
         return None
     try:
-        out = subprocess.run(
-            ["pdftotext", str(path), "-"], capture_output=True, timeout=180
-        )
+        out = subprocess.run(["pdftotext", str(path), "-"], capture_output=True, timeout=180)
     except (subprocess.SubprocessError, OSError):
         return None
     return len(out.stdout.decode("utf-8", "replace").split())
@@ -43,9 +41,7 @@ def load(path: Path) -> Document:
 
     notes = [report.summary()]
     if report.unresolved:
-        notes.append(
-            "WARNING: some glyphs could not be inferred; text may still be corrupt"
-        )
+        notes.append("WARNING: some glyphs could not be inferred; text may still be corrupt")
 
     poppler_words = _poppler_word_count(path)
     our_words = len(fixed.split())

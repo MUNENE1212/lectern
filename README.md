@@ -1,9 +1,44 @@
 # Lectern
 
-Turn readings into navigable audio, and study alongside them.
+**Turn any reading into a navigable audiobook — without silently mangling the text.**
 
-Built after converting a 417-page textbook to audio by hand and hitting every trap on the
-way. Phase 1 (this release) covers ingest → chapter detection → audiobook → web library.
+[![CI](https://github.com/MUNENE1212/lectern/actions/workflows/ci.yml/badge.svg)](https://github.com/MUNENE1212/lectern/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+Point it at a PDF, ebook, article or document. It extracts the text, works out where the
+chapters are, shows you its reasoning, and — once you agree — renders per-chapter MP3s plus
+a single M4B that remembers your position. Everything runs locally.
+
+Built after converting a 417-page textbook by hand and hitting every trap on the way.
+This release covers ingest → chapter detection → audio → web library.
+
+## See it work
+
+```console
+$ lectern add "College Success.pdf"
+  repaired 3214 glyphs (U+E068->fi x1821, U+E067->ff x844, U+E069->fl x240,
+                        U+E06A->ffi x239, ... U+E06B->ffl x1)
+
+  structure from: toc   printed->PDF offset: +10   confidence: 80%
+    - chapters parsed from the book's table of contents (page offset +10)
+    - printed->PDF page offset +10 (agreement 98%)
+
+    #        pages     words    ~audio  title
+    1    17-40         10492   1:03:35  Exploring College
+    2    41-74         17436   1:45:40  The Truth About Learning Styles
+    ...
+   12   371-398        14075   1:25:18  Planning for Your Future
+
+  15 chapters, 178,434 words, ~18.0 h of audio
+
+  Looks right? [Y/n/edit]
+```
+
+That book had **no embedded outline**, printed page numbers **off by 10** from the PDF's,
+and **3,214 words** silently corrupted by ligature encoding. All three are handled above,
+and reported rather than assumed.
 
 ## Why it is not a shell script
 

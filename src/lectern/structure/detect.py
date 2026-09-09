@@ -18,9 +18,21 @@ from pathlib import Path
 # Section headings that recur in every chapter of a textbook and must never be mistaken
 # for chapter titles themselves.
 BOILERPLATE = {
-    "introduction", "summary", "rethinking", "career connection", "preface", "index",
-    "where do you go from here?", "contents", "table of contents", "glossary",
-    "references", "bibliography", "appendix", "acknowledgements", "acknowledgments",
+    "introduction",
+    "summary",
+    "rethinking",
+    "career connection",
+    "preface",
+    "index",
+    "where do you go from here?",
+    "contents",
+    "table of contents",
+    "glossary",
+    "references",
+    "bibliography",
+    "appendix",
+    "acknowledgements",
+    "acknowledgments",
 }
 
 _SECTION_NUM = re.compile(r"^\d{1,2}\.\d{1,2}\b")
@@ -32,8 +44,8 @@ _HEADER_RUN = re.compile(r"^\s*(\d{1,2})(?:\.\d{1,2})?\s*[•|]\s*(.+?)\s*$")
 class Chapter:
     idx: int
     title: str
-    page_start: int          # 1-based PDF page
-    page_end: int            # inclusive
+    page_start: int  # 1-based PDF page
+    page_end: int  # inclusive
     word_count: int = 0
 
     @property
@@ -120,9 +132,13 @@ def _toc_pairs(pages: list[str], scan: int = 20) -> list[tuple[str, int]]:
                 pairs.append((m.group(1).strip(), int(m.group(2))))
                 continue
             # Title on one line, page number alone on the next
-            if j + 1 < len(lines) and _BARE_INT.match(lines[j + 1]) and not _BARE_INT.match(ln):
-                if 3 <= len(ln) <= 90:
-                    pairs.append((ln, int(lines[j + 1])))
+            if (
+                j + 1 < len(lines)
+                and _BARE_INT.match(lines[j + 1])
+                and not _BARE_INT.match(ln)
+                and 3 <= len(ln) <= 90
+            ):
+                pairs.append((ln, int(lines[j + 1])))
     return pairs
 
 
@@ -207,7 +223,10 @@ def from_toc(pages: list[str], offset: int | None, n_pages: int) -> Structure | 
         end = (ordered[i + 1][1] + offset - 1) if i + 1 < len(ordered) else n_pages
         chapters.append(Chapter(i + 1, title, start, max(start, min(end, n_pages))))
     return Structure(
-        chapters, "toc", offset, 0.8,
+        chapters,
+        "toc",
+        offset,
+        0.8,
         [f"chapters parsed from the book's table of contents (page offset +{offset})"],
     )
 
@@ -265,13 +284,16 @@ def from_regex(pages: list[str], n_pages: int) -> Structure | None:
 # --------------------------------------------------------------------- source: chunks
 
 
-def by_chunks(pages: list[str], n_pages: int, size: int = 25) -> Structure:
+def by_chunks(n_pages: int, size: int = 25) -> Structure:
     chapters = []
     for k, start in enumerate(range(1, n_pages + 1, size), start=1):
         end = min(start + size - 1, n_pages)
         chapters.append(Chapter(k, f"Part {k} (pages {start}-{end})", start, end))
     return Structure(
-        chapters, "chunks", None, 0.1,
+        chapters,
+        "chunks",
+        None,
+        0.1,
         ["no structure detected -- split into fixed-size parts"],
     )
 
@@ -288,7 +310,10 @@ def detect(pages: list[str], pdf_path: Path | None = None) -> Structure:
     if n == 1:
         return Structure(
             [Chapter(1, "Full text", 1, 1, len(pages[0].split()))],
-            "single", None, 1.0, ["single-document input; no chapter split"],
+            "single",
+            None,
+            1.0,
+            ["single-document input; no chapter split"],
         )
 
     offset, off_conf = solve_offset(pages)
@@ -312,7 +337,7 @@ def detect(pages: list[str], pdf_path: Path | None = None) -> Structure:
                 )
             return candidate
 
-    s = by_chunks(pages, n)
+    s = by_chunks(n)
     for ch in s.chapters:
         ch.word_count = sum(
             len(pages[p - 1].split()) for p in range(ch.page_start, ch.page_end + 1)

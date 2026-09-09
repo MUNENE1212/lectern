@@ -14,8 +14,7 @@ from pathlib import Path
 from . import Document, file_hash
 
 CALIBRE_HINTS = (
-    "install calibre, or add ~/.local/calibre to PATH "
-    "(the binaries live there on this machine)"
+    "install calibre, or add ~/.local/calibre to PATH (the binaries live there on this machine)"
 )
 
 

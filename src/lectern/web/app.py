@@ -53,7 +53,7 @@ def create_app(cfg: _config.Config) -> FastAPI:
             raise HTTPException(
                 status_code=503,
                 detail=f"library unavailable at {cfg.library_root} "
-                       "(is the external drive mounted?)",
+                "(is the external drive mounted?)",
             )
         return _db.connect(cfg.db_path)
 
@@ -85,12 +85,17 @@ def create_app(cfg: _config.Config) -> FastAPI:
                 ).fetchone()["d"]
                 elapsed = prior + (r["pos_offset"] or 0)
             total = r["total"] or 0
-            out.append({
-                "slug": r["slug"], "title": r["title"], "author": r["author"],
-                "chapters": r["n_chapters"], "total": total,
-                "elapsed": elapsed,
-                "progress": (elapsed / total) if total else 0.0,
-            })
+            out.append(
+                {
+                    "slug": r["slug"],
+                    "title": r["title"],
+                    "author": r["author"],
+                    "chapters": r["n_chapters"],
+                    "total": total,
+                    "elapsed": elapsed,
+                    "progress": (elapsed / total) if total else 0.0,
+                }
+            )
         return out
 
     @app.get("/api/books/{slug}")
@@ -100,18 +105,25 @@ def create_app(cfg: _config.Config) -> FastAPI:
         if not b:
             raise HTTPException(404, "no such book")
         chapters = [
-            {"id": r["id"], "idx": r["idx"], "title": r["title"],
-             "duration": r["duration"] or 0,
-             "has_audio": bool(r["audio_path"]),
-             "page_start": r["page_start"]}
+            {
+                "id": r["id"],
+                "idx": r["idx"],
+                "title": r["title"],
+                "duration": r["duration"] or 0,
+                "has_audio": bool(r["audio_path"]),
+                "page_start": r["page_start"],
+            }
             for r in _db.chapters_for(c, b["id"])
         ]
         pos = c.execute("SELECT * FROM positions WHERE book_id=?", (b["id"],)).fetchone()
         return {
-            "slug": b["slug"], "title": b["title"], "author": b["author"],
+            "slug": b["slug"],
+            "title": b["title"],
+            "author": b["author"],
             "chapters": chapters,
-            "position": ({"chapter_id": pos["chapter_id"], "offset": pos["offset_sec"]}
-                         if pos else None),
+            "position": (
+                {"chapter_id": pos["chapter_id"], "offset": pos["offset_sec"]} if pos else None
+            ),
         }
 
     @app.get("/api/audio/{slug}/{idx}")

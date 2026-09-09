@@ -4,7 +4,10 @@ from lectern import naming
 
 
 def test_slug_is_lowercase_kebab():
-    assert naming.slugify("College Success — A Student's Guide!") == "college-success-a-student-s-guide"
+    assert (
+        naming.slugify("College Success — A Student's Guide!")
+        == "college-success-a-student-s-guide"
+    )
     assert naming.slugify("  ") == "untitled"
 
 
@@ -29,7 +32,10 @@ def test_portable_name_is_self_describing():
     import datetime
 
     name = naming.portable_name(
-        "College Success", "ch07", "Managing Resources", "md",
+        "College Success",
+        "ch07",
+        "Managing Resources",
+        "md",
         date=datetime.date(2026, 9, 8),
     )
     assert name == "college-success--ch07--2026-09-08--managing-resources.md"

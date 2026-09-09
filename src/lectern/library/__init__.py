@@ -15,10 +15,12 @@ from .. import config as _config
 from .. import db as _db
 from .. import naming
 from ..clean import chapter_text
-from ..ingest import Document, load as ingest_load
+from ..ingest import Document
+from ..ingest import load as ingest_load
 from ..package import Track, build_m4b
 from ..structure import detect as _detect
-from ..tts import Job, render as tts_render
+from ..tts import Job
+from ..tts import render as tts_render
 
 
 class DuplicateSource(RuntimeError):
@@ -35,8 +37,9 @@ class Added:
     document: Document
 
 
-def add(cfg: _config.Config, target: str | Path, *, title: str | None = None,
-        move: bool = False) -> Added:
+def add(
+    cfg: _config.Config, target: str | Path, *, title: str | None = None, move: bool = False
+) -> Added:
     """Ingest a source, propose a chapter structure, and record both (unconfirmed)."""
     _config.require_library(cfg)
     doc = ingest_load(target)
@@ -64,9 +67,7 @@ def add(cfg: _config.Config, target: str | Path, *, title: str | None = None,
         stored_source = str(dest)
         doc.source_path = dest
 
-    naming.pages_path(cfg.library_root, slug).write_text(
-        json.dumps(doc.pages), encoding="utf-8"
-    )
+    naming.pages_path(cfg.library_root, slug).write_text(json.dumps(doc.pages), encoding="utf-8")
 
     pdf_for_outline = doc.source_path if doc.fmt == "pdf" else None
     structure = _detect.detect(doc.pages, pdf_for_outline)
@@ -75,9 +76,19 @@ def add(cfg: _config.Config, target: str | Path, *, title: str | None = None,
         """INSERT INTO books (slug,title,author,source_path,source_hash,format,
                printed_offset,structure_src,n_pages,word_count,confirmed,added_at)
            VALUES (?,?,?,?,?,?,?,?,?,?,0,?)""",
-        (slug, doc.title, doc.author, stored_source, doc.source_hash, doc.fmt,
-         structure.printed_offset, structure.source, len(doc.pages), doc.word_count,
-         _db.now()),
+        (
+            slug,
+            doc.title,
+            doc.author,
+            stored_source,
+            doc.source_hash,
+            doc.fmt,
+            structure.printed_offset,
+            structure.source,
+            len(doc.pages),
+            doc.word_count,
+            _db.now(),
+        ),
     )
     book_id = conn.execute("SELECT id FROM books WHERE slug = ?", (slug,)).fetchone()["id"]
     _write_chapters(conn, cfg, book_id, slug, doc, structure)
@@ -85,11 +96,12 @@ def add(cfg: _config.Config, target: str | Path, *, title: str | None = None,
     return Added(slug, doc.title, structure, doc)
 
 
-def _write_chapters(conn, cfg, book_id: int, slug: str, doc: Document,
-                    structure: _detect.Structure) -> None:
+def _write_chapters(
+    conn, cfg, book_id: int, slug: str, doc: Document, structure: _detect.Structure
+) -> None:
     conn.execute("DELETE FROM chapters WHERE book_id = ?", (book_id,))
     for ch in structure.chapters:
-        raw = "\n".join(doc.pages[ch.page_start - 1: ch.page_end])
+        raw = "\n".join(doc.pages[ch.page_start - 1 : ch.page_end])
         body = chapter_text(ch.title, raw, idx=ch.idx)
         tp = naming.chapter_text_path(cfg.library_root, slug, ch.idx, ch.title)
         tp.parent.mkdir(parents=True, exist_ok=True)
@@ -97,8 +109,16 @@ def _write_chapters(conn, cfg, book_id: int, slug: str, doc: Document,
         conn.execute(
             """INSERT INTO chapters (book_id,idx,title,page_start,page_end,word_count,
                    text_path,body) VALUES (?,?,?,?,?,?,?,?)""",
-            (book_id, ch.idx, ch.title, ch.page_start, ch.page_end,
-             len(body.split()), str(tp), body),
+            (
+                book_id,
+                ch.idx,
+                ch.title,
+                ch.page_start,
+                ch.page_end,
+                len(body.split()),
+                str(tp),
+                body,
+            ),
         )
 
 
@@ -111,9 +131,13 @@ def restructure(cfg: _config.Config, slug: str, keep: list[int]) -> None:
     chosen = [r for r in rows if r["idx"] in keep]
     doc = Document(title=book["title"], pages=pages, fmt=book["format"])
     structure = _detect.Structure(
-        [_detect.Chapter(i + 1, r["title"], r["page_start"], r["page_end"])
-         for i, r in enumerate(chosen)],
-        book["structure_src"], book["printed_offset"], 1.0,
+        [
+            _detect.Chapter(i + 1, r["title"], r["page_start"], r["page_end"])
+            for i, r in enumerate(chosen)
+        ],
+        book["structure_src"],
+        book["printed_offset"],
+        1.0,
     )
     for stale in (naming.book_dir(cfg.library_root, slug) / "text").glob("*.txt"):
         stale.unlink()
@@ -127,8 +151,15 @@ def confirm(cfg: _config.Config, slug: str) -> None:
     conn.commit()
 
 
-def render(cfg: _config.Config, slug: str, *, speed: float = 1.0, voice: str | None = None,
-           make_m4b: bool = True, on_event=None) -> dict:
+def render(
+    cfg: _config.Config,
+    slug: str,
+    *,
+    speed: float = 1.0,
+    voice: str | None = None,
+    make_m4b: bool = True,
+    on_event=None,
+) -> dict:
     """Synthesise every chapter, then assemble an M4B. Resumable."""
     _config.require_library(cfg)
     conn = _db.connect(cfg.db_path)
@@ -144,15 +175,17 @@ def render(cfg: _config.Config, slug: str, *, speed: float = 1.0, voice: str | N
         raise FileNotFoundError(f"voice not found: {voice_p}")
 
     jobs = [
-        Job(text_path=Path(r["text_path"]),
+        Job(
+            text_path=Path(r["text_path"]),
             out_path=naming.chapter_audio_path(cfg.library_root, slug, r["idx"], r["title"]),
-            title=f"{r['idx']:02d} - {r['title']}")
+            title=f"{r['idx']:02d} - {r['title']}",
+        )
         for r in rows
     ]
     durations = tts_render(jobs, voice_p, workers=cfg.workers, speed=speed, on_event=on_event)
 
     tracks: list[Track] = []
-    for r, job in zip(rows, jobs):
+    for r, job in zip(rows, jobs, strict=True):
         secs = durations.get(job.out_path, 0.0)
         conn.execute(
             "UPDATE chapters SET audio_path = ?, duration = ? WHERE id = ?",
@@ -168,8 +201,9 @@ def render(cfg: _config.Config, slug: str, *, speed: float = 1.0, voice: str | N
     return result
 
 
-def import_existing(cfg: _config.Config, folder: Path, *, title: str,
-                    author: str = "", make_m4b: bool = True) -> str:
+def import_existing(
+    cfg: _config.Config, folder: Path, *, title: str, author: str = "", make_m4b: bool = True
+) -> str:
     """Adopt an already-rendered folder of chapter MP3/TXT files without re-rendering."""
     _config.require_library(cfg)
     folder = Path(folder)
@@ -199,15 +233,26 @@ def import_existing(cfg: _config.Config, folder: Path, *, title: str,
         conn.execute(
             """INSERT INTO chapters (book_id,idx,title,word_count,text_path,audio_path,
                    duration,body) VALUES (?,?,?,?,?,?,?,?)""",
-            (book_id, i, chap_title, len(body.split()),
-             str(txt) if txt.exists() else "", str(mp3), _dur(mp3), body),
+            (
+                book_id,
+                i,
+                chap_title,
+                len(body.split()),
+                str(txt) if txt.exists() else "",
+                str(mp3),
+                _dur(mp3),
+                body,
+            ),
         )
     conn.commit()
 
     if make_m4b:
         rows = _db.chapters_for(conn, book_id)
-        tracks = [Track(Path(r["audio_path"]), r["title"], r["duration"] or 0.0)
-                  for r in rows if r["audio_path"]]
+        tracks = [
+            Track(Path(r["audio_path"]), r["title"], r["duration"] or 0.0)
+            for r in rows
+            if r["audio_path"]
+        ]
         if tracks:
             out = naming.m4b_path(cfg.library_root, slug, title)
             build_m4b(tracks, out, title=title, author=author)

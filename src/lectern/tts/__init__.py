@@ -6,7 +6,6 @@ cores, and every unit of work is skippable: an interrupted run resumes where it 
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -54,17 +53,39 @@ def synth_one(job: Job, voice: Path, *, speed: float = 1.0, bitrate: str = "64k"
     try:
         with open(job.text_path, "rb") as fh:
             proc = subprocess.run(
-                [piper_exe(), "-m", str(voice), "--length-scale", f"{length_scale:.4f}",
-                 "-f", str(wav)],
-                stdin=fh, capture_output=True,
+                [
+                    piper_exe(),
+                    "-m",
+                    str(voice),
+                    "--length-scale",
+                    f"{length_scale:.4f}",
+                    "-f",
+                    str(wav),
+                ],
+                stdin=fh,
+                capture_output=True,
             )
         if proc.returncode != 0 or not wav.exists() or wav.stat().st_size == 0:
-            raise RuntimeError(f"piper failed on {job.title}: {proc.stderr[-300:].decode(errors='replace')}")
+            detail = proc.stderr[-300:].decode(errors="replace")
+            raise RuntimeError(f"piper failed on {job.title}: {detail}")
         subprocess.run(
-            [ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(wav),
-             "-codec:a", "libmp3lame", "-b:a", bitrate,
-             "-metadata", f"title={job.title}", str(job.out_path)],
-            check=True, capture_output=True,
+            [
+                ffmpeg_exe(),
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(wav),
+                "-codec:a",
+                "libmp3lame",
+                "-b:a",
+                bitrate,
+                "-metadata",
+                f"title={job.title}",
+                str(job.out_path),
+            ],
+            check=True,
+            capture_output=True,
         )
         return duration(job.out_path)
     finally:
@@ -77,7 +98,8 @@ def duration(path: Path) -> float:
         return 0.0
     out = subprocess.run(
         [exe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     try:
         return float(out.stdout.strip())
@@ -85,8 +107,9 @@ def duration(path: Path) -> float:
         return 0.0
 
 
-def render(jobs: list[Job], voice: Path, *, workers: int = 2, speed: float = 1.0,
-           on_event=None) -> dict[Path, float]:
+def render(
+    jobs: list[Job], voice: Path, *, workers: int = 2, speed: float = 1.0, on_event=None
+) -> dict[Path, float]:
     """Render jobs in parallel, skipping any whose output already exists."""
     results: dict[Path, float] = {}
     pending: list[Job] = []

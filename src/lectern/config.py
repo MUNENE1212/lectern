@@ -70,9 +70,7 @@ def _default_workers() -> int:
     by_cores = max(1, min(4, cores - 1))
     try:
         with open("/proc/meminfo") as fh:
-            avail_kb = next(
-                int(line.split()[1]) for line in fh if line.startswith("MemAvailable")
-            )
+            avail_kb = next(int(line.split()[1]) for line in fh if line.startswith("MemAvailable"))
         by_mem = max(1, avail_kb // (1024 * 1024))  # ~1 GB per worker
     except (OSError, StopIteration, ValueError):
         by_mem = by_cores

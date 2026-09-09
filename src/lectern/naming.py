@@ -26,9 +26,7 @@ SEP = "--"
 #  Characters that are illegal on NTFS (where the library lives) or awkward in shells.
 _ILLEGAL = r'<>:"/\|?*'
 _SLUG_OK = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_PORTABLE_OK = re.compile(
-    r"^[a-z0-9-]+(?:--[a-z0-9-]+)*(?:\.[a-z0-9]+)+$"
-)
+_PORTABLE_OK = re.compile(r"^[a-z0-9-]+(?:--[a-z0-9-]+)*(?:\.[a-z0-9]+)+$")
 
 
 def slugify(text: str, *, max_len: int = 60) -> str:

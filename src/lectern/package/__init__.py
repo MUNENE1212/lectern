@@ -43,8 +43,9 @@ def _ffmetadata(tracks: list[Track], *, title: str, author: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_m4b(tracks: list[Track], out_path: Path, *, title: str, author: str = "",
-              bitrate: str = "64k", cover: Path | None = None) -> Path:
+def build_m4b(
+    tracks: list[Track], out_path: Path, *, title: str, author: str = "", bitrate: str = "64k"
+) -> Path:
     tracks = [t for t in tracks if t.path.exists() and t.path.stat().st_size > 0]
     if not tracks:
         raise RuntimeError("no rendered audio to assemble")
@@ -63,12 +64,26 @@ def build_m4b(tracks: list[Track], out_path: Path, *, title: str, author: str = 
         meta.write_text(_ffmetadata(tracks, title=title, author=author), encoding="utf-8")
 
         cmd = [
-            ffmpeg_exe(), "-y", "-loglevel", "error",
-            "-f", "concat", "-safe", "0", "-i", str(listing),
-            "-i", str(meta),
-            "-map_metadata", "1",
-            "-c:a", "aac", "-b:a", bitrate,
-            "-movflags", "+faststart",
+            ffmpeg_exe(),
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(listing),
+            "-i",
+            str(meta),
+            "-map_metadata",
+            "1",
+            "-c:a",
+            "aac",
+            "-b:a",
+            bitrate,
+            "-movflags",
+            "+faststart",
             str(out_path),
         ]
         proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -86,7 +101,8 @@ def read_chapters(m4b: Path) -> list[tuple[float, str]]:
 
     out = subprocess.run(
         [exe, "-v", "error", "-print_format", "json", "-show_chapters", str(m4b)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     try:
         data = json.loads(out.stdout)

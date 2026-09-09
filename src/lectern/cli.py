@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import config as _config
 from . import db as _db
-from . import library, naming
+from . import library
 
 
 def _fmt_hms(seconds: float) -> str:
@@ -35,9 +35,11 @@ def _parse_keep(spec: str, available: list[int]) -> list[int]:
 def _show_structure(added_structure, title: str) -> None:
     s = added_structure
     print(f"\n  {title}")
-    print(f"  structure from: {s.source}"
-          + (f"   printed->PDF offset: +{s.printed_offset}" if s.printed_offset is not None else "")
-          + f"   confidence: {s.confidence:.0%}")
+    print(
+        f"  structure from: {s.source}"
+        + (f"   printed->PDF offset: +{s.printed_offset}" if s.printed_offset is not None else "")
+        + f"   confidence: {s.confidence:.0%}"
+    )
     for note in s.notes:
         print(f"    - {note}")
     print(f"\n  {'#':>3}  {'pages':>11}  {'words':>8}  {'~audio':>8}  title")
@@ -45,10 +47,13 @@ def _show_structure(added_structure, title: str) -> None:
     for c in s.chapters:
         total_w += c.word_count
         est = c.word_count / 165 * 60
-        print(f"  {c.idx:>3}  {c.page_start:>4}-{c.page_end:<6}  {c.word_count:>8}  "
-              f"{_fmt_hms(est):>8}  {c.title[:52]}")
-    print(f"\n  {len(s.chapters)} chapters, {total_w:,} words, "
-          f"~{total_w / 165 / 60:.1f} h of audio\n")
+        print(
+            f"  {c.idx:>3}  {c.page_start:>4}-{c.page_end:<6}  {c.word_count:>8}  "
+            f"{_fmt_hms(est):>8}  {c.title[:52]}"
+        )
+    print(
+        f"\n  {len(s.chapters)} chapters, {total_w:,} words, ~{total_w / 165 / 60:.1f} h of audio\n"
+    )
 
 
 def cmd_add(args) -> int:
@@ -106,8 +111,7 @@ def cmd_chapters(args) -> int:
     print(f"\n  {book['title']}")
     print(f"  {'#':>3}  {'pages':>11}  {'words':>8}  {'audio':>9}  title")
     for r in rows:
-        pages = (f"{r['page_start']}-{r['page_end']}"
-                 if r["page_start"] else "-")
+        pages = f"{r['page_start']}-{r['page_end']}" if r["page_start"] else "-"
         dur = _fmt_hms(r["duration"]) if r["duration"] else "-"
         print(f"  {r['idx']:>3}  {pages:>11}  {r['word_count']:>8}  {dur:>9}  {r['title'][:52]}")
     print()
@@ -140,8 +144,12 @@ def cmd_render(args) -> int:
 
     try:
         result = library.render(
-            cfg, args.slug, speed=args.speed, voice=args.voice,
-            make_m4b=not args.no_m4b, on_event=on_event,
+            cfg,
+            args.slug,
+            speed=args.speed,
+            voice=args.voice,
+            make_m4b=not args.no_m4b,
+            on_event=on_event,
         )
     except (KeyError, FileNotFoundError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -174,7 +182,8 @@ def cmd_list(args) -> int:
     rows = conn.execute(
         """SELECT b.slug,b.title,b.confirmed,COUNT(c.id) n,
                   COALESCE(SUM(c.duration),0) secs,
-                  SUM(CASE WHEN c.audio_path IS NOT NULL AND c.audio_path<>'' THEN 1 ELSE 0 END) done
+                  SUM(CASE WHEN c.audio_path IS NOT NULL AND c.audio_path <> ''
+                           THEN 1 ELSE 0 END) done
            FROM books b LEFT JOIN chapters c ON c.book_id=b.id
            GROUP BY b.id ORDER BY b.added_at DESC"""
     ).fetchall()
@@ -183,8 +192,10 @@ def cmd_list(args) -> int:
         return 0
     print(f"\n  {'slug':<28} {'ch':>3} {'audio':>4} {'length':>9}  title")
     for r in rows:
-        print(f"  {r['slug']:<28} {r['n']:>3} {r['done'] or 0:>4} "
-              f"{_fmt_hms(r['secs']):>9}  {r['title'][:44]}")
+        print(
+            f"  {r['slug']:<28} {r['n']:>3} {r['done'] or 0:>4} "
+            f"{_fmt_hms(r['secs']):>9}  {r['title'][:44]}"
+        )
     print()
     return 0
 
@@ -218,9 +229,13 @@ def cmd_inbox(args) -> int:
 def cmd_import(args) -> int:
     cfg = _config.load()
     try:
-        slug = library.import_existing(cfg, Path(args.folder), title=args.title,
-                                       author=args.author or "",
-                                       make_m4b=not args.no_m4b)
+        slug = library.import_existing(
+            cfg,
+            Path(args.folder),
+            title=args.title,
+            author=args.author or "",
+            make_m4b=not args.no_m4b,
+        )
     except (RuntimeError, library.DuplicateSource) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -255,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("slug")
     r.add_argument("--speed", type=float, default=1.0)
     r.add_argument("--voice")
-    r.add_argument("--no-m4b", action="store_true")
+    r.add_argument("--no-m4b", action="store_true", help="skip assembling the M4B audiobook")
     r.set_defaults(func=cmd_render)
 
     f = sub.add_parser("find", help="full-text search the library")
